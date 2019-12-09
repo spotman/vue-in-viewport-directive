@@ -67,8 +67,8 @@ startObserving = function startObserving(el, binding) {
 
 makeObserver = function makeObserver(el, _ref) {
   var _ref$value = _ref.value,
-      value = _ref$value === void 0 ? {} : _ref$value,
-      modifiers = _ref.modifiers;
+      value      = _ref$value === void 0 ? {} : _ref$value,
+      modifiers  = _ref.modifiers;
   var callback, margin, observer, root; // Make the default root
 
   root = value.root || directive.defaults.root;
@@ -114,10 +114,10 @@ makeObserver = function makeObserver(el, _ref) {
 
 
 update = function update(_ref4) {
-  var el = _ref4.el,
-      entry = _ref4.entry,
+  var el        = _ref4.el,
+      entry     = _ref4.entry,
       modifiers = _ref4.modifiers;
-  var above, add, below, inViewport, remove, root, target, toggle;
+  var above, add, below, dispatchEvent, inViewport, outsideLeft, outsideRight, remove, root, target, toggle;
   target = entry.boundingClientRect;
   root = entry.rootBounds;
   // Init vars
@@ -135,14 +135,39 @@ update = function update(_ref4) {
   }; // Determine viewport status, see vue-in-viewport-mixin for more info:
   // https://github.com/BKWLD/vue-in-viewport-mixin/blob/master/index.coffee
 
+  dispatchEvent = function dispatchEvent(name) {
+    el.dispatchEvent(new Event(name));
+  };
 
-  inViewport = target.top <= root.bottom && target.bottom > root.top;
+  if (!root) {
+    // Stop listening on elements outside of DOM
+    return removeObserver(el);
+  }
+
+
+  inViewport = target.top <= root.bottom && target.bottom > root.top && target.right >= root.left && target.left <= root.right;
+
   above = target.top < root.top;
   below = target.bottom > root.bottom + 1; // Determine which classes to add
+  outsideLeft = target.left < root.left;
+  outsideRight = target.right > root.right + 1;
 
   toggle(inViewport, 'in-viewport');
   toggle(above, 'above-viewport');
   toggle(below, 'below-viewport');
+  toggle(outsideLeft, 'outside-left-viewport');
+  toggle(outsideRight, 'outside-right-viewport');
+
+  if (modifiers.emit) {
+    // Emit event on element
+    if (inViewport && !above && !below && !outsideLeft && !outsideRight) {
+      dispatchEvent('in-viewport-whole');
+    } else if (inViewport) {
+      dispatchEvent('in-viewport-partial');
+    } else {
+      dispatchEvent('in-viewport-hidden');
+    }
+  }
 
   if (add.length) {
     // Apply classes to element
